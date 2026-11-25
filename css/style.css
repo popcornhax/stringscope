@@ -1,0 +1,779 @@
+:root {
+  --panel-bg: rgba(12, 14, 26, 0.78);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --text: #e8eaf4;
+  --muted: #8b90a8;
+  --accent: #7cf7d4;
+  --accent-2: #a78bfa;
+  --control: rgba(255, 255, 255, 0.06);
+  --control-hover: rgba(255, 255, 255, 0.11);
+  --radius: 10px;
+  --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #05060f;
+  color: var(--text);
+  font: 13px/1.4 var(--font);
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+}
+#stage.dragging {
+  cursor: grabbing;
+}
+#gllines,
+#lines,
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#gl {
+  visibility: hidden;
+}
+body.view-depth #gl,
+body.view-shaded #gl {
+  visibility: visible;
+}
+body.inset:not(.view-depth):not(.view-shaded) #gl {
+  visibility: visible;
+  inset: auto auto 76px 16px;
+  width: 240px;
+  height: 150px;
+  border-radius: var(--radius);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* Brand */
+#brand {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+#brand .logo {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+#brand .logo span {
+  color: var(--accent);
+}
+#brand .tag {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Panel */
+#panel {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 300px;
+  overflow-y: auto;
+  padding: 6px 14px 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  scrollbar-width: thin;
+}
+body.panel-closed #panel {
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+#panelToggle {
+  position: fixed;
+  top: 14px;
+  right: 324px;
+  z-index: 3;
+  transition: right 0.25s ease;
+}
+body.panel-closed #panelToggle {
+  right: 14px;
+}
+
+details {
+  border-bottom: 1px solid var(--panel-border);
+  padding: 4px 0 10px;
+}
+details:last-of-type {
+  border-bottom: 0;
+}
+summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 650;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  padding: 10px 0 6px;
+  user-select: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary::after {
+  content: '▾';
+  float: right;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+details:not([open]) summary::after {
+  transform: rotate(-90deg);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+}
+.row > span {
+  color: var(--text);
+  white-space: nowrap;
+}
+.row.slider {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.row.slider > span {
+  display: flex;
+  justify-content: space-between;
+}
+.row.slider output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.row.stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.seg.full {
+  display: flex;
+}
+.seg.full button {
+  flex: 1;
+  padding: 6px 4px;
+}
+.row.check {
+  justify-content: flex-start;
+  cursor: pointer;
+}
+.row.buttons {
+  justify-content: stretch;
+}
+.row.buttons .btn {
+  flex: 1;
+}
+.inline {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+select,
+input[type='text'],
+input[type='number'] {
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  min-width: 0;
+  flex: 1;
+  max-width: 170px;
+}
+input[type='number'] {
+  max-width: 120px;
+}
+select:focus,
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+select option {
+  background: #141729;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  margin: 0;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent) var(--fill, 50%), rgba(255, 255, 255, 0.12) var(--fill, 50%));
+}
+input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(124, 247, 212, 0.25);
+}
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+}
+input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+
+.btn,
+.icon-btn,
+.seg button {
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn:hover,
+.icon-btn:hover,
+.seg button:hover {
+  background: var(--control-hover);
+}
+/* Floating buttons sit over the artwork (often a light palette): keep them dark on hover,
+   which touch screens also leave "stuck" after a tap. */
+.icon-btn:hover {
+  background: rgba(30, 34, 56, 0.92);
+}
+.btn.icon {
+  padding: 4px 9px;
+  font-size: 15px;
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--muted);
+}
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 15px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.icon-btn.text {
+  width: auto;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.icon-btn.active {
+  color: var(--accent);
+  border-color: rgba(124, 247, 212, 0.5);
+}
+
+.seg {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+.seg button {
+  border: 0;
+  border-radius: 0;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--muted);
+}
+.seg button + button {
+  border-left: 1px solid var(--panel-border);
+}
+.seg button.on {
+  background: rgba(124, 247, 212, 0.14);
+  color: var(--accent);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin: 6px 0 0;
+}
+.footer-buttons {
+  margin-top: 12px;
+}
+
+/* Dock */
+#dock {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: opacity 0.25s;
+}
+#dock .icon-btn {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#dock .seg {
+  height: 36px;
+}
+
+#stats {
+  position: fixed;
+  left: 12px;
+  bottom: 16px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--panel-bg);
+  color: var(--muted);
+  font: 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: none;
+  text-shadow: 0 1px 4px #000;
+  white-space: pre;
+}
+
+/* Clean mode: only the stereogram remains; dock fades back in on hover. */
+body.clean #panel,
+body.clean #panelToggle,
+body.clean #brand,
+body.clean #stats {
+  opacity: 0;
+  pointer-events: none;
+}
+body.clean #dock {
+  opacity: 0;
+}
+body.clean #dock:hover,
+body.clean #dock:focus-within {
+  opacity: 1;
+}
+
+#drop {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(5, 6, 15, 0.7);
+  border: 3px dashed var(--accent);
+  font-size: 22px;
+  z-index: 10;
+  pointer-events: none;
+}
+body.dragover #drop {
+  display: grid;
+}
+
+#toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translate(-50%, -20px);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  padding: 8px 14px;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  z-index: 20;
+}
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+#toast.error {
+  border-color: rgba(251, 113, 133, 0.6);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 4, 10, 0.72);
+  z-index: 30;
+  padding: 16px;
+}
+.modal[hidden] {
+  display: none;
+}
+.modal .card {
+  position: relative;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #0f1222;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 22px 26px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+.modal h2 {
+  margin: 0 0 12px;
+  font-size: 19px;
+}
+.modal h3 {
+  margin: 18px 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+.modal ol {
+  padding-left: 20px;
+}
+.modal li {
+  margin: 6px 0;
+}
+.modal p {
+  color: #c4c8da;
+}
+.modal .fine {
+  color: var(--muted);
+  font-size: 12px;
+}
+.modal .close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.keys {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+  color: #c4c8da;
+}
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font: 11px ui-monospace, Menlo, monospace;
+  text-align: center;
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  #panel {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 70px;
+    width: auto;
+    max-height: 55vh;
+  }
+  body.panel-closed #panel {
+    transform: translateY(calc(100% + 80px));
+  }
+  #panelToggle,
+  body.panel-closed #panelToggle {
+    right: 14px;
+  }
+  #dock {
+    bottom: 10px;
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
+  }
+  #brand .tag,
+  #stats {
+    display: none;
+  }
+  body.inset:not(.view-depth):not(.view-shaded) #gl {
+    width: 150px;
+    height: 96px;
+    inset: 60px auto auto 12px;
+  }
+}
+
+/* ---------------------------------------------------------------- touch & mobile */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+button,
+select,
+input,
+summary {
+  touch-action: manipulation; /* no double-tap zoom on controls */
+}
+
+/* Keep chrome clear of notches, rounded corners and the home indicator. */
+#brand {
+  top: calc(12px + var(--safe-top));
+  left: calc(12px + var(--safe-left));
+}
+#panel {
+  top: calc(12px + var(--safe-top));
+  right: calc(12px + var(--safe-right));
+  bottom: calc(12px + var(--safe-bottom));
+}
+#panelToggle {
+  top: calc(14px + var(--safe-top));
+  right: calc(324px + var(--safe-right));
+}
+body.panel-closed #panelToggle {
+  right: calc(14px + var(--safe-right));
+}
+#dock {
+  bottom: calc(16px + var(--safe-bottom));
+}
+#stats {
+  bottom: calc(16px + var(--safe-bottom));
+  left: calc(12px + var(--safe-left));
+}
+
+/* Restores the interface in clean mode; touch screens have no hover to reveal the dock. */
+#showUI {
+  position: fixed;
+  right: calc(14px + var(--safe-right));
+  bottom: calc(14px + var(--safe-bottom));
+  display: none;
+  opacity: 0.35;
+  z-index: 4;
+}
+body.clean #showUI {
+  display: inline-grid;
+}
+#showUI:hover,
+#showUI:focus-visible {
+  opacity: 1;
+}
+
+.touch-only {
+  display: none;
+}
+@media (hover: none), (pointer: coarse) {
+  .touch-only {
+    display: revert;
+  }
+  ul.keys.touch-only {
+    display: grid;
+  }
+  .mouse-only {
+    display: none;
+  }
+  /* Bigger targets for fingers. */
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  #dock .seg {
+    height: 44px;
+  }
+  .seg button {
+    min-height: 40px;
+  }
+  .btn {
+    min-height: 40px;
+  }
+  input[type='range'] {
+    height: 30px;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    margin-top: -10px;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+  }
+  .row.check {
+    min-height: 36px;
+  }
+  /* iOS zooms into inputs with text smaller than 16px. */
+  select,
+  input[type='text'],
+  input[type='number'] {
+    font-size: 16px;
+  }
+  body.clean #dock {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #stats {
+    display: none;
+  }
+}
+
+/* Mid widths (tablets, narrow windows): keep the dock beside an open panel and let it scroll. */
+@media (max-width: 1100px) {
+  body:not(.panel-closed) #dock {
+    left: calc(8px + var(--safe-left));
+    right: calc(324px + var(--safe-right));
+    transform: none;
+    max-width: none;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+  #dock > * {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 720px) {
+  #panel {
+    top: auto;
+    left: calc(8px + var(--safe-left));
+    right: calc(8px + var(--safe-right));
+    bottom: calc(76px + var(--safe-bottom));
+    max-height: min(60vh, 60dvh);
+  }
+  #panelToggle,
+  body.panel-closed #panelToggle {
+    right: calc(12px + var(--safe-right));
+  }
+  #dock {
+    left: calc(8px + var(--safe-left));
+    right: calc(8px + var(--safe-right));
+    bottom: calc(10px + var(--safe-bottom));
+    transform: none;
+    justify-content: flex-start;
+    gap: 4px;
+    max-width: none;
+    scrollbar-width: none;
+  }
+  #dock::-webkit-scrollbar {
+    display: none;
+  }
+  body:not(.panel-closed) #dock {
+    right: calc(8px + var(--safe-right));
+  }
+  #dock > * {
+    flex: 0 0 auto;
+  }
+  #brand {
+    padding: 5px 9px;
+  }
+  #brand .logo {
+    font-size: 15px;
+  }
+  body.inset:not(.view-depth):not(.view-shaded) #gl {
+    inset: calc(58px + var(--safe-top)) auto auto calc(12px + var(--safe-left));
+  }
+  .modal .card {
+    padding: 18px 18px;
+  }
+}
+
+/* Landscape phones: short screens need the sheet to stay compact. */
+@media (max-height: 500px) and (max-width: 1000px) {
+  #panel {
+    top: calc(8px + var(--safe-top));
+    bottom: calc(66px + var(--safe-bottom));
+    left: auto;
+    right: calc(8px + var(--safe-right));
+    width: min(320px, 55vw);
+    max-height: none;
+  }
+  body.panel-closed #panel {
+    transform: translateX(calc(100% + 24px));
+  }
+  #panelToggle {
+    top: calc(8px + var(--safe-top));
+    right: calc(min(320px, 55vw) + 16px + var(--safe-right));
+  }
+  body.panel-closed #panelToggle {
+    top: calc(8px + var(--safe-top));
+    right: calc(8px + var(--safe-right));
+  }
+  #brand .tag {
+    display: none;
+  }
+  #dock {
+    bottom: calc(8px + var(--safe-bottom));
+  }
+  body:not(.panel-closed) #dock {
+    left: calc(8px + var(--safe-left));
+    right: calc(min(320px, 55vw) + 16px + var(--safe-right));
+  }
+  #stats {
+    display: none;
+  }
+}

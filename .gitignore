@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules/
+_site/
+
+# SVG exports saved from the app (icons/icon.svg is part of the site)
+stringscope-*.svg
+
+# Logs and local environment
+*.log
+npm-debug.log*
+.env
+.env.*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

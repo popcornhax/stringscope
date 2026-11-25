@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#05060f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StringScope" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <title>StringScope</title>
+    <meta name="description" content="Generative line-art autostereograms (Magic Eye style) from live 3D models." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305060f'/%3E%3Cpath d='M7 4c3 6-3 18 0 24M13 4c3 6-3 18 0 24M19 4c4 6-2 18 1 24M25 4c3 6-3 18 0 24' stroke='%237cf7d4' stroke-width='2' fill='none'/%3E%3C/svg%3E" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/three.module.js",
+          "three/addons/": "./vendor/three/addons/"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="gllines" aria-hidden="true"></canvas>
+      <canvas id="lines" aria-label="Stereogram"></canvas>
+      <canvas id="gl" aria-label="3D preview"></canvas>
+    </div>
+
+    <header id="brand">
+      <div class="logo">String<span>Scope</span></div>
+      <div class="tag">line-art autostereograms</div>
+    </header>
+
+    <button id="panelToggle" class="icon-btn" title="Show / hide controls" aria-label="Toggle controls">☰</button>
+
+    <aside id="panel" aria-label="Controls">
+      <details open>
+        <summary>Model</summary>
+        <label class="row">
+          <span>Shape</span>
+          <select data-bind="model" id="modelSelect"></select>
+        </label>
+        <label class="row" id="textRow">
+          <span>Text</span>
+          <input type="text" data-bind="text" maxlength="16" spellcheck="false" />
+        </label>
+        <div class="row buttons">
+          <button id="importBtn" class="btn" title="3D models, or any image as a depth map (white = near)">Import model or depth image…</button>
+          <input id="fileInput" type="file" accept=".stl,.obj,.ply,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,image/*" hidden />
+        </div>
+        <div id="imageControls" hidden>
+          <div class="row stack">
+            <span>Depth from</span>
+            <div class="seg full" data-group="imageMode">
+              <button data-set="imageMode:embedded" id="modeEmbedded" title="The depth map your iPhone recorded in this Portrait-mode photo">Embedded</button>
+              <button data-set="imageMode:matte" id="modeMatte" title="Apple's portrait matte: the subject as a flat cut-out">Cutout</button>
+              <button data-set="imageMode:brightness" title="Use the image itself as a depth map: white = near">Bright</button>
+              <button data-set="imageMode:ai" title="Estimate real 3D depth from a photo with Depth Anything V2 (downloads ~25 MB once)">AI</button>
+            </div>
+          </div>
+          <p class="hint" id="aiStatus"></p>
+          <label class="row check">
+            <input type="checkbox" data-bind="imageInvert" />
+            <span>Invert (dark = near)</span>
+          </label>
+          <label class="row slider">
+            <span>Relief depth <output data-out="imageRelief"></output></span>
+            <input type="range" data-bind="imageRelief" min="0.2" max="1.6" step="0.05" />
+          </label>
+          <label class="row slider" title="Gamma curve: higher pushes mid-tones toward the front">
+            <span>Contrast <output data-out="imageContrast"></output></span>
+            <input type="range" data-bind="imageContrast" min="0.3" max="3" step="0.05" />
+          </label>
+          <label class="row slider">
+            <span>Soften <output data-out="imageBlur"></output></span>
+            <input type="range" data-bind="imageBlur" min="0" max="6" step="1" />
+          </label>
+        </div>
+        <label class="row slider">
+          <span>Size <output data-out="scale"></output></span>
+          <input type="range" data-bind="scale" min="0.3" max="2" step="0.01" />
+        </label>
+      </details>
+
+      <details open>
+        <summary>Motion</summary>
+        <label class="row">
+          <span>Animation</span>
+          <select data-bind="motion">
+            <option value="none">Still</option>
+            <option value="spin">Spin</option>
+            <option value="tumble">Tumble</option>
+            <option value="rock">Rock</option>
+            <option value="float">Float &amp; breathe</option>
+            <option value="orbit">Orbit</option>
+          </select>
+        </label>
+        <label class="row slider">
+          <span>Speed <output data-out="speed"></output></span>
+          <input type="range" data-bind="speed" min="0" max="3" step="0.01" />
+        </label>
+        <label class="row check" title="Uses your microphone: the model throbs with the sound in the room">
+          <input type="checkbox" id="micToggle" />
+          <span>Pulse to sound (mic)</span>
+        </label>
+        <label class="row slider">
+          <span>Pulse strength <output data-out="micGain"></output></span>
+          <input type="range" data-bind="micGain" min="0.2" max="3" step="0.05" />
+        </label>
+        <p class="hint mouse-only">Drag to rotate · Shift/right-drag to move · Wheel to push in / pull out · Double-click to reset</p>
+        <p class="hint touch-only">Drag to rotate · Two fingers to move · Pinch to push in / pull out · Double-tap to reset</p>
+      </details>
+
+      <details open>
+        <summary>Stereo</summary>
+        <div class="row">
+          <span>Viewing</span>
+          <div class="seg" data-group="crossEyed">
+            <button data-set="crossEyed:false" title="Relax / diverge your eyes (classic Magic Eye)">Wall-eyed</button>
+            <button data-set="crossEyed:true" title="Cross your eyes">Cross-eyed</button>
+          </div>
+        </div>
+        <label class="row slider">
+          <span>Eye separation <output data-out="eye"></output></span>
+          <input type="range" data-bind="eye" min="60" max="260" step="1" />
+        </label>
+        <label class="row slider">
+          <span>Depth strength <output data-out="strength"></output></span>
+          <input type="range" data-bind="strength" min="0.05" max="0.6" step="0.01" />
+        </label>
+        <label class="row slider" title="0 = the object rises smoothly out of the background; 1 = it floats in front of it">
+          <span>Lift from background <output data-out="lift"></output></span>
+          <input type="range" data-bind="lift" min="0" max="1" step="0.01" />
+        </label>
+        <label class="row slider">
+          <span>Surface smoothing <output data-out="smoothing"></output></span>
+          <input type="range" data-bind="smoothing" min="0" max="6" step="1" />
+        </label>
+        <label class="row slider" title="Heals strings that would break at the object's edges: they bend smoothly around depth cliffs instead of stopping. 0 = off (strictly exact stereo).">
+          <span>Reconnect strings <output data-out="reconnect"></output></span>
+          <input type="range" data-bind="reconnect" min="0" max="40" step="1" />
+        </label>
+        <label class="row slider" title="Grid spacing used to trace the lines. Finer = smoother, slower.">
+          <span>Line detail <output data-out="cell"></output></span>
+          <input type="range" data-bind="cell" min="2" max="6" step="0.5" />
+        </label>
+        <label class="row slider" title="Gently fades the repeated 'echoes' of the object across the background. Small values only.">
+          <span>Echo damping <output data-out="damping"></output></span>
+          <input type="range" data-bind="damping" min="0" max="0.3" step="0.01" />
+        </label>
+      </details>
+
+      <details open>
+        <summary>Pattern</summary>
+        <label class="row">
+          <span>Style</span>
+          <select data-bind="pattern" id="patternSelect"></select>
+        </label>
+        <label class="row">
+          <span>Palette</span>
+          <select data-bind="palette" id="paletteSelect"></select>
+        </label>
+        <div class="row">
+          <span>Seed</span>
+          <div class="inline">
+            <input type="number" data-bind="seed" min="0" step="1" />
+            <button id="reseed" class="btn icon" title="New random design (R)">🎲</button>
+          </div>
+        </div>
+        <label class="row slider">
+          <span>Density <output data-out="density"></output></span>
+          <input type="range" data-bind="density" min="0.5" max="2" step="0.05" />
+        </label>
+        <label class="row slider">
+          <span>Line width <output data-out="lineWidth"></output></span>
+          <input type="range" data-bind="lineWidth" min="0.4" max="4" step="0.05" />
+        </label>
+        <label class="row slider">
+          <span>Glow <output data-out="glow"></output></span>
+          <input type="range" data-bind="glow" min="0" max="1.5" step="0.05" />
+        </label>
+        <label class="row slider" title="Slides the whole design sideways while the hidden shape stays put">
+          <span>Pattern flow <output data-out="flow"></output></span>
+          <input type="range" data-bind="flow" min="-0.6" max="0.6" step="0.01" />
+        </label>
+        <label class="row check" title="Outlines the hidden shape in red: a spoiler to help you find it (X)">
+          <input type="checkbox" data-bind="reveal" />
+          <span>Reveal hint</span>
+        </label>
+        <label class="row check">
+          <input type="checkbox" data-bind="guides" />
+          <span>Show focus guide dots</span>
+        </label>
+      </details>
+
+      <div class="row buttons footer-buttons">
+        <button id="resetAll" class="btn ghost">Reset all settings</button>
+      </div>
+    </aside>
+
+    <nav id="dock" aria-label="Playback and view">
+      <button id="playBtn" class="icon-btn" title="Play / pause (Space)">❚❚</button>
+      <button id="resetPose" class="icon-btn" title="Reset pose (0)">⟲</button>
+      <div class="seg" data-group="view">
+        <button data-set="view:stereo" title="Line stereogram">Stereo</button>
+        <button data-set="view:depth" title="Depth map (D)">Depth</button>
+        <button data-set="view:shaded" title="Shaded 3D preview">3D</button>
+      </div>
+      <button id="insetBtn" class="icon-btn" title="Picture-in-picture 3D preview (P)">▣</button>
+      <button id="galleryBtn" class="icon-btn" title="Gallery: auto-tour models, patterns and palettes (G)">✦</button>
+      <button id="svgBtn" class="icon-btn text" title="Export this frame as SVG (S)">SVG</button>
+      <button id="fullBtn" class="icon-btn" title="Fullscreen (F)">⛶</button>
+      <button id="cleanBtn" class="icon-btn" title="Hide interface (H)">◐</button>
+      <button id="helpBtn" class="icon-btn" title="How to view (?)">?</button>
+    </nav>
+
+    <button id="showUI" class="icon-btn" title="Show controls" aria-label="Show controls">◑</button>
+    <div id="stats" aria-hidden="true"></div>
+    <div id="drop"><div>Drop an <b>STL</b>, <b>OBJ</b> or <b>PLY</b> model — or any <b>image</b> as a depth map</div></div>
+    <div id="toast" role="status"></div>
+
+    <div id="help" class="modal" hidden>
+      <div class="card">
+        <button class="close icon-btn" id="helpClose" aria-label="Close">✕</button>
+        <h2>How to see the hidden 3D shape</h2>
+        <ol>
+          <li>Go fullscreen and sit about arm's length from the screen.</li>
+          <li><b>Wall-eyed</b> (default): look <i>through</i> the screen, as if at something far behind it. The two guide dots at the top will drift into three or four — relax until there are exactly <b>three</b>.</li>
+          <li>Keep that focus and let your gaze wander down into the lines. The shape snaps into depth; once it's locked you can look around it.</li>
+          <li><b>Cross-eyed</b>: switch the viewing mode, then cross your eyes slightly (try focusing on a fingertip held halfway to the screen) until the dots make three.</li>
+        </ol>
+        <p>Tips: start with <i>Still</i> motion, a larger eye separation if fusion feels strained on a big screen, and a smaller one on a laptop. Moving models stay fused; the line design itself never reshuffles — only the strings near the object bend.</p>
+        <h3 class="touch-only">Touch</h3>
+        <ul class="keys touch-only">
+          <li><kbd>Drag</kbd> rotate</li>
+          <li><kbd>2 fingers</kbd> move</li>
+          <li><kbd>Pinch</kbd> push / pull</li>
+          <li><kbd>Double-tap</kbd> reset</li>
+          <li><kbd>◐</kbd> hide controls</li>
+          <li><kbd>Tap</kbd> bring them back</li>
+        </ul>
+        <p class="fine touch-only">On iPhone, use Share → <b>Add to Home Screen</b> for a fullscreen app. On a phone, a smaller eye separation (60–90&nbsp;px) is easier to fuse at reading distance.</p>
+        <h3 class="mouse-only">Keyboard</h3>
+        <ul class="keys mouse-only">
+          <li><kbd>Drag</kbd> rotate</li>
+          <li><kbd>Shift</kbd>+<kbd>Drag</kbd> move</li>
+          <li><kbd>Wheel</kbd> push / pull</li>
+          <li><kbd>Space</kbd> play / pause</li>
+          <li><kbd>R</kbd> new design</li>
+          <li><kbd>D</kbd> cycle view</li>
+          <li><kbd>P</kbd> 3D inset</li>
+          <li><kbd>S</kbd> save SVG</li>
+          <li><kbd>H</kbd> hide UI</li>
+          <li><kbd>F</kbd> fullscreen</li>
+          <li><kbd>0</kbd> reset pose</li>
+          <li><kbd>←↑→↓</kbd> rotate</li>
+          <li><kbd>X</kbd> reveal hint</li>
+          <li><kbd>G</kbd> gallery tour</li>
+        </ul>
+        <p class="fine">Drop an STL, OBJ or PLY anywhere to load it, or any image to use it as a depth map (white = near; classic Magic Eye depth maps work). Everything is drawn as vector strokes — no bitmap texture is used — so the SVG export is resolution-independent.</p>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "stringscope",
+  "version": "1.0.0",
+  "description": "Generative line-art autostereogram (Magic Eye style) renderer with live 3D models",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "start:lan": "node server.js --lan",
+    "test": "node --test tests/*.test.js",
+    "build": "node tools/build-site.js",
+    "preview": "npm run build && node server.js --root _site"
+  },
+  "license": "MIT",
+  "homepage": "https://popcornhax.github.io/stringscope/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/popcornhax/stringscope.git"
+  },
+  "bugs": {
+    "url": "https://github.com/popcornhax/stringscope/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
